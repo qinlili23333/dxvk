@@ -305,6 +305,10 @@ namespace dxvk {
     return D3D_OK;
   }
 
+    ULONG STDMETHODCALLTYPE D3D9InterfaceEx::Release(){
+      Logger::warn("Enable Defer Surface Creation to prevent VK_ERROR_NATIVE_WINDOW_IN_USE_KHR");
+      m_instance->overrideOption("d3d9.deferSurfaceCreation", "True");
+    };
 
   // Ex Methods
 

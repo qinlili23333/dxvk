@@ -95,6 +95,8 @@ namespace dxvk {
             UINT            Mode,
             D3DDISPLAYMODE* pMode);
 
+    ULONG STDMETHODCALLTYPE Release();
+    
     // Ex Methods
 
     UINT STDMETHODCALLTYPE GetAdapterModeCountEx(UINT Adapter, CONST D3DDISPLAYMODEFILTER* pFilter);

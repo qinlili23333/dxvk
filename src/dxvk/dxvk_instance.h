@@ -129,6 +129,13 @@ namespace dxvk {
       return m_config;
     }
 
+    void overrideOption(
+      const std::string& key,
+      const std::string& value) {
+      m_config.setOption(key, value);
+    };
+  
+
     /**
      * \brief DXVK options
      * \returns DXVK options
