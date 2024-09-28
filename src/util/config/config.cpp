@@ -26,24 +26,10 @@ namespace dxvk {
     { R"(\\Diablo IV\.exe$)", {{
       { "dxgi.hideNvidiaGpu",               "False"  },
     }} },
-    /* WILD HEARTS™️                            *
-     * D3D12 title using D3D11 device for      *
-     * media texture creation, whereby a large *
-     * chunk size only slows down media        *
-     * initialization                          */
-    { R"(\\WILD HEARTS(_Trial)?\.exe$)", {{
-      { "dxvk.maxChunkSize",                 "4" },
-    }} },
     /* Ratchet & Clank: Rift Apart - does not allow
      * enabling ray tracing if it sees an AMD GPU. */
     { R"(\\RiftApart\.exe$)", {{
       { "dxgi.hideNvidiaGpu",               "False" },
-    }} },
-    /* Metro Exodus Enhanced Edition picks GPU adapters
-     * by available VRAM, which causes issues on some
-     * systems with integrated graphics. */
-    { R"(\\Metro Exodus Enhanced Edition\\MetroExodus\.exe$)", {{
-      { "dxvk.hideIntegratedGraphics",      "True" },
     }} },
     /* Persona 3 Reload - disables vsync by default and
      * runs into severe frame latency issues on Deck. */
@@ -401,38 +387,6 @@ namespace dxvk {
     { R"(\\SnowRunner\.exe$)", {{
       { "d3d11.dcSingleUseMode",            "False" },
     }} },
-    /* Rockstar Games Launcher                    */
-    { R"(\\Rockstar Games\\Launcher\\Launcher\.exe$)", {{
-      { "dxvk.maxChunkSize",                "1"   },
-    }} },
-    /* Rockstar Social Club                       */
-    { R"(\\Rockstar Games\\Social Club\\SocialClubHelper\.exe$)", {{
-      { "dxvk.maxChunkSize",                "1"   },
-    }} },
-    /* EA Desktop App                             */
-    { R"(\\EADesktop\.exe$)", {{
-      { "dxvk.maxChunkSize",                "1"   },
-    }} },
-    /* Origin app (legacy EA Desktop)             */
-    { R"(\\Origin\\(Origin|OriginWebHelperService)\.exe$)", {{
-      { "dxvk.maxChunkSize",                "1"   },
-    }} },
-    /* Ubisoft Connect (UPlay)                    */
-    { R"(\\Ubisoft\\Ubisoft Game Launcher\\(UbisoftConnect|upc)\.exe$)", {{
-      { "dxvk.maxChunkSize",                "1"   },
-    }} },
-    /* GOG Galaxy                                 */
-    { R"(\\GalaxyClient\.exe$)", {{
-      { "dxvk.maxChunkSize",                "1"   },
-    }} },
-    /* Epic Games Launcher                        */
-    { R"(\\(EpicGamesLauncher|EpicWebHelper)\.exe$)", {{
-      { "dxvk.maxChunkSize",                "1"   },
-    }} },
-    /* Blizzard Entertainment Battle.net          */
-    { R"(\\Battle\.net\.exe$)", {{
-      { "dxvk.maxChunkSize",                "1" },
-    }} },
     /* Fallout 76
      * Game tries to be too "smart" and changes sync
      * interval based on performance (in fullscreen)
@@ -488,6 +442,11 @@ namespace dxvk {
     /* EDF6 - possible race condition?            */
     { R"(\\EDF6\.exe$)", {{
       { "d3d11.enableContextLock",          "True" },
+    }} },
+    /* Kena: Bridge of Spirits: intel water       * 
+      flickering issues                           */
+    { R"(\\Kena-Win64-Shipping\.exe$)", {{
+      { "dxgi.hideIntelGpu",                 "True" },
     }} },
 
     /**********************************************/
@@ -598,14 +557,15 @@ namespace dxvk {
     }} },
     /* GTA IV (NVAPI)                             */
     /* Also thinks we're always on Intel          *
-     * and will report/use bad amounts of VRAM.
+     * and will report/use bad amounts of VRAM
+     * if we report more than 128 MB of VRAM.
      * Disabling support for DF texture formats
      * makes the game use a better looking render
      * path for mirrors.
      * Also runs into issues after alt-tabbing.   */
     { R"(\\(GTAIV|EFLC)\.exe$)", {{
       { "d3d9.customVendorId",              "1002" },
-      { "dxgi.emulateUMA",                  "True" },
+      { "dxgi.maxDeviceMemory",             "128" },
       { "d3d9.supportDFFormats",            "False" },
       { "d3d9.deviceLossOnFocusLoss",       "True" },
     }} },
@@ -1003,6 +963,25 @@ namespace dxvk {
     { R"(\\RaccoonCity\.exe$)", {{
       { "d3d9.textureMemory",               "0" },
     }} },
+    /* APB: Reloaded                               *
+     * Fixes frametime jumps when shooting         */
+    { R"(\\APB\.exe$)", {{
+      { "d3d9.cachedDynamicBuffers",        "True" },
+    }} },
+    /* Battle Mages - helps CPU bound perf         */
+    { R"(\\Battle Mages\\mages\.exe$)", {{
+      { "d3d9.cachedDynamicBuffers",        "True" },
+    }} },
+    /* Prince of Persia (2008) - Can get stuck     *
+     * during loading at very high fps             */
+    { R"(\\PrinceOfPersia_Launcher\.exe$)", {{
+      { "d3d9.maxFrameRate",                 "240" },
+    }} },
+    /* F.E.A.R 1 & expansions                      *
+     * Graphics glitches at very high fps          */
+    { R"(\\FEAR(MP|XP|XP2)?\.exe$)", {{
+      { "d3d9.maxFrameRate",                 "360" },
+    }} },
 
     /**********************************************/
     /* D3D8 GAMES                                 */
@@ -1136,7 +1115,36 @@ namespace dxvk {
     }} },
     /* Art of Murder FBI Confidential - CPU perf  */
     { R"(\\Art of Murder - FBI Confidential\\game\.exe$)", {{
-      { "d3d9.cachedDynamicBuffers",       "True" },
+      { "d3d9.cachedDynamicBuffers",        "True" },
+    }} },
+    /* Max Payne 1 - Stalls waiting for an index buffer */
+    { R"(\\MaxPayne\.exe$)", {{
+      { "d3d9.allowDirectBufferMapping",   "False" },
+    }} },
+    /* Z: Steel Soldiers                          */
+    { R"(\\z2\.exe$)", {{
+      { "d3d9.cachedDynamicBuffers",        "True" },
+    }} },
+    /* FIFA Football 2003                         */
+    { R"(\\fifa2003(demo)?\.exe$)", {{
+      { "d3d9.cachedDynamicBuffers",        "True" },
+    }} },
+    /* Splinter Cell: Pandora Tomorrow            *
+     * Broken inputs and physics above 60 FPS     */
+    { R"(\\SplinterCell2\.exe$)", {{
+      { "d3d9.maxFrameRate",                  "60" },
+    }} },
+    /* Chrome: Gold Edition                       *
+     * Broken character model motion at high FPS  */
+    { R"(\\Chrome(Single|Net)\.exe$)", {{
+      { "d3d9.maxFrameRate",                  "60" },
+    }} },
+    /* Rayman 3: Hoodlum Havoc                    *
+     * Missing geometry and textures without      *
+     * legacy DISCARD behavior                    */
+    { R"(\\Rayman3\.exe$)", {{
+      { "d3d9.allowDirectBufferMapping",   "False" },
+      { "d3d8.forceLegacyDiscard",          "True" },
     }} },
   }};
 

@@ -50,6 +50,10 @@ dxvk_shaders = files([
   'shaders/dxvk_unpack_d24s8.comp',
   'shaders/dxvk_unpack_d32s8.comp',
 
+  'hud/shaders/hud_chunk_frag_background.frag',
+  'hud/shaders/hud_chunk_frag_visualize.frag',
+  'hud/shaders/hud_chunk_vert.vert',
+
   'hud/shaders/hud_graph_frag.frag',
   'hud/shaders/hud_graph_vert.vert',
 
@@ -59,13 +63,13 @@ dxvk_shaders = files([
 
 dxvk_src = [
   'dxvk_adapter.cpp',
+  'dxvk_allocator.cpp',
   'dxvk_barrier.cpp',
   'dxvk_buffer.cpp',
   'dxvk_cmdlist.cpp',
   'dxvk_compute.cpp',
   'dxvk_context.cpp',
   'dxvk_cs.cpp',
-  'dxvk_data.cpp',
   'dxvk_descriptor.cpp',
   'dxvk_device.cpp',
   'dxvk_device_filter.cpp',

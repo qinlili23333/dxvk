@@ -353,7 +353,7 @@ namespace dxvk {
     m_targetFrameRate = FrameRate;
 
     if (m_presenter != nullptr)
-      m_presenter->setFrameRateLimit(m_targetFrameRate);
+      m_presenter->setFrameRateLimit(m_targetFrameRate, GetActualFrameLatency());
   }
 
 
@@ -377,7 +377,7 @@ namespace dxvk {
 
       VkResult status = m_presenter->acquireNextImage(sync, imageIndex);
 
-      while (status != VK_SUCCESS && status != VK_SUBOPTIMAL_KHR) {
+      while (status != VK_SUCCESS) {
         RecreateSwapChain();
 
         if (!m_presenter->hasSwapChain())
@@ -385,6 +385,9 @@ namespace dxvk {
         
         info = m_presenter->info();
         status = m_presenter->acquireNextImage(sync, imageIndex);
+
+        if (status == VK_SUBOPTIMAL_KHR)
+          break;
       }
 
       if (m_hdrMetadata && m_dirtyHdrMetadata) {
@@ -506,7 +509,7 @@ namespace dxvk {
     presenterDesc.fullScreenExclusive = PickFullscreenMode();
 
     m_presenter = new Presenter(m_device, m_frameLatencySignal, presenterDesc);
-    m_presenter->setFrameRateLimit(m_targetFrameRate);
+    m_presenter->setFrameRateLimit(m_targetFrameRate, GetActualFrameLatency());
   }
 
 
@@ -540,25 +543,22 @@ namespace dxvk {
     imageInfo.layout      = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     imageInfo.shared      = VK_TRUE;
 
-    DxvkImageViewCreateInfo viewInfo;
-    viewInfo.type         = VK_IMAGE_VIEW_TYPE_2D;
+    DxvkImageViewKey viewInfo;
+    viewInfo.viewType     = VK_IMAGE_VIEW_TYPE_2D;
     viewInfo.format       = info.format.format;
     viewInfo.usage        = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    viewInfo.aspect       = VK_IMAGE_ASPECT_COLOR_BIT;
-    viewInfo.minLevel     = 0;
-    viewInfo.numLevels    = 1;
-    viewInfo.minLayer     = 0;
-    viewInfo.numLayers    = 1;
+    viewInfo.aspects      = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.mipIndex     = 0;
+    viewInfo.mipCount     = 1;
+    viewInfo.layerIndex   = 0;
+    viewInfo.layerCount   = 1;
 
     for (uint32_t i = 0; i < info.imageCount; i++) {
       VkImage imageHandle = m_presenter->getImage(i).image;
       
-      Rc<DxvkImage> image = new DxvkImage(
-        m_device.ptr(), imageInfo, imageHandle,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-      m_imageViews[i] = new DxvkImageView(
-        m_device->vkd(), image, viewInfo);
+      Rc<DxvkImage> image = m_device->importImage(imageInfo,
+        imageHandle, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+      m_imageViews[i] = image->createView(viewInfo);
     }
   }
 
@@ -608,16 +608,16 @@ namespace dxvk {
 
     // Create an image view that allows the
     // image to be bound as a shader resource.
-    DxvkImageViewCreateInfo viewInfo;
-    viewInfo.type       = VK_IMAGE_VIEW_TYPE_2D;
+    DxvkImageViewKey viewInfo;
+    viewInfo.viewType   = VK_IMAGE_VIEW_TYPE_2D;
     viewInfo.format     = m_swapImage->info().format;
     viewInfo.usage      = VK_IMAGE_USAGE_SAMPLED_BIT;
-    viewInfo.aspect     = VK_IMAGE_ASPECT_COLOR_BIT;
-    viewInfo.minLevel   = 0;
-    viewInfo.numLevels  = 1;
-    viewInfo.minLayer   = 0;
-    viewInfo.numLayers  = 1;
-    m_swapImageView = m_device->createImageView(m_swapImage, viewInfo);
+    viewInfo.aspects    = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.mipIndex   = 0;
+    viewInfo.mipCount   = 1;
+    viewInfo.layerIndex = 0;
+    viewInfo.layerCount = 1;
+    m_swapImageView = m_swapImage->createView(viewInfo);
     
     // Initialize the image so that we can use it. Clearing
     // to black prevents garbled output for the first frame.

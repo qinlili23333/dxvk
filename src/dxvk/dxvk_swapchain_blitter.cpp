@@ -33,21 +33,21 @@ namespace dxvk {
     if (!dstRect.extent.width || !dstRect.extent.height) {
       dstRect.offset = { 0, 0 };
       dstRect.extent = {
-        dstView->imageInfo().extent.width,
-        dstView->imageInfo().extent.height };
+        dstView->image()->info().extent.width,
+        dstView->image()->info().extent.height };
     }
 
     if (!srcRect.extent.width || !srcRect.extent.height) {
       srcRect.offset = { 0, 0 };
       srcRect.extent = {
-        srcView->imageInfo().extent.width,
-        srcView->imageInfo().extent.height };
+        srcView->image()->info().extent.width,
+        srcView->image()->info().extent.height };
     }
 
     bool sameSize = dstRect.extent == srcRect.extent;
     bool usedResolveImage = false;
 
-    if (srcView->imageInfo().sampleCount == VK_SAMPLE_COUNT_1_BIT) {
+    if (srcView->image()->info().sampleCount == VK_SAMPLE_COUNT_1_BIT) {
       this->draw(ctx, sameSize ? m_fsCopy : m_fsBlit,
         dstView, dstRect, srcView, srcRect);
     } else if (sameSize) {
@@ -55,9 +55,9 @@ namespace dxvk {
         dstView, dstRect, srcView, srcRect);
     } else {
       if (m_resolveImage == nullptr
-       || m_resolveImage->info().extent != srcView->imageInfo().extent
-       || m_resolveImage->info().format != srcView->imageInfo().format)
-        this->createResolveImage(srcView->imageInfo());
+       || m_resolveImage->info().extent != srcView->image()->info().extent
+       || m_resolveImage->info().format != srcView->image()->info().format)
+        this->createResolveImage(srcView->image()->info());
 
       this->resolve(ctx, m_resolveView, srcView);
       this->draw(ctx, m_fsBlit, dstView, dstRect, m_resolveView, srcRect);
@@ -76,7 +76,7 @@ namespace dxvk {
     VkDeviceSize size = cpCount * sizeof(*cpData);
 
     if (cpCount) {
-      if (m_gammaBuffer == nullptr || m_gammaBuffer->info().size < size) {
+      if (!m_gammaBuffer || m_gammaBuffer->info().size < size) {
         DxvkBufferCreateInfo bufInfo;
         bufInfo.size = size;
         bufInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
@@ -86,15 +86,15 @@ namespace dxvk {
         m_gammaBuffer = m_device->createBuffer(bufInfo,
           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
           VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        m_gammaSlice = m_gammaBuffer->getAllocation();
+      } else {
+        m_gammaSlice = m_gammaBuffer->allocateSlice();
       }
 
-      if (!m_gammaSlice.handle)
-        m_gammaSlice = m_gammaBuffer->allocSlice();
-
-      std::memcpy(m_gammaSlice.mapPtr, cpData, size);
+      std::memcpy(m_gammaSlice->mapPtr(), cpData, size);
     } else {
       m_gammaBuffer = nullptr;
-      m_gammaSlice = DxvkBufferSliceHandle();
+      m_gammaSlice = nullptr;
     }
 
     m_gammaCpCount = cpCount;
@@ -185,8 +185,8 @@ namespace dxvk {
     ctx->bindRenderTargets(std::move(renderTargets), 0u);
 
     VkExtent2D dstExtent = {
-      dstView->imageInfo().extent.width,
-      dstView->imageInfo().extent.height };
+      dstView->image()->info().extent.width,
+      dstView->image()->info().extent.height };
 
     if (dstRect.extent == dstExtent)
       ctx->discardImageView(dstView, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -212,7 +212,7 @@ namespace dxvk {
 
     ctx->pushConstants(0, sizeof(args), &args);
 
-    ctx->setSpecConstant(VK_PIPELINE_BIND_POINT_GRAPHICS, 0, srcView->imageInfo().sampleCount);
+    ctx->setSpecConstant(VK_PIPELINE_BIND_POINT_GRAPHICS, 0, srcView->image()->info().sampleCount);
     ctx->setSpecConstant(VK_PIPELINE_BIND_POINT_GRAPHICS, 1, m_gammaView != nullptr);
     ctx->draw(3, 1, 0, 0);
   }
@@ -226,7 +226,7 @@ namespace dxvk {
     resolve.srcOffset      = { 0, 0, 0 };
     resolve.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
     resolve.dstOffset      = { 0, 0, 0 };
-    resolve.extent         = dstView->imageInfo().extent;
+    resolve.extent         = dstView->image()->info().extent;
     ctx->resolveImage(dstView->image(), srcView->image(), resolve, VK_FORMAT_UNDEFINED);
   }
 
@@ -257,27 +257,25 @@ namespace dxvk {
         m_gammaImage = m_device->createImage(
           imgInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-        DxvkImageViewCreateInfo viewInfo;
-        viewInfo.type       = VK_IMAGE_VIEW_TYPE_1D;
+        DxvkImageViewKey viewInfo;
+        viewInfo.viewType   = VK_IMAGE_VIEW_TYPE_1D;
         viewInfo.format     = VK_FORMAT_R16G16B16A16_UNORM;
         viewInfo.usage      = VK_IMAGE_USAGE_SAMPLED_BIT;
-        viewInfo.aspect     = VK_IMAGE_ASPECT_COLOR_BIT;
-        viewInfo.minLevel   = 0;
-        viewInfo.numLevels  = 1;
-        viewInfo.minLayer   = 0;
-        viewInfo.numLayers  = 1;
+        viewInfo.aspects    = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewInfo.mipIndex   = 0;
+        viewInfo.mipCount   = 1;
+        viewInfo.layerIndex = 0;
+        viewInfo.layerCount = 1;
         
-        m_gammaView = m_device->createImageView(m_gammaImage, viewInfo);
+        m_gammaView = m_gammaImage->createView(viewInfo);
       }
 
-      ctx->invalidateBuffer(m_gammaBuffer, m_gammaSlice);
+      ctx->invalidateBuffer(m_gammaBuffer, std::move(m_gammaSlice));
       ctx->copyBufferToImage(m_gammaImage,
         VkImageSubresourceLayers { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
         VkOffset3D { 0, 0, 0 },
         VkExtent3D { n, 1, 1 },
         m_gammaBuffer, 0, 0, 0);
-
-      m_gammaSlice = DxvkBufferSliceHandle();
     } else {
       m_gammaImage = nullptr;
       m_gammaView  = nullptr;
@@ -373,16 +371,16 @@ namespace dxvk {
     newInfo.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     m_resolveImage = m_device->createImage(newInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    DxvkImageViewCreateInfo viewInfo;
-    viewInfo.type = VK_IMAGE_VIEW_TYPE_2D;
+    DxvkImageViewKey viewInfo;
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     viewInfo.format = info.format;
     viewInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
-    viewInfo.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-    viewInfo.minLevel  = 0;
-    viewInfo.numLevels = 1;
-    viewInfo.minLayer  = 0;
-    viewInfo.numLayers = 1;
-    m_resolveView = m_device->createImageView(m_resolveImage, viewInfo);
+    viewInfo.aspects = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.mipIndex = 0;
+    viewInfo.mipCount = 1;
+    viewInfo.layerIndex = 0;
+    viewInfo.layerCount = 1;
+    m_resolveView = m_resolveImage->createView(viewInfo);
   }
 
 
