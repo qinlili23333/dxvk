@@ -604,6 +604,7 @@ namespace dxvk {
       { "dxgi.maxDeviceMemory",             "128" },
       { "d3d9.supportDFFormats",            "False" },
       { "d3d9.deviceLossOnFocusLoss",       "True" },
+      { "dxvk.allowFse",            "True" },
     }} },
     /* Battlefield 2 & Battlefield 2142           *
      * Bad z-pass and ingame GUI loss on alt tab  *
